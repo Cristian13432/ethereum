@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract AnonymousVoting {
+    struct Voter {
+        bool hasVoted;
+        uint256 voteIndex;
+    }
+
+    struct Proposal {
+        string name;
+        uint256 voteCount;
+    }
+
+    address public owner;
+    mapping(address => Voter) public voters;
+    Proposal[] public proposals;
+
+    event ProposalRegistered(uint256 indexed index, string name);
+    event Voted(address indexed voter, uint256 indexed proposalIndex);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
+
+    constructor(string[] memory _proposalNames) {
+        owner = msg.sender;
+        for (uint256 i = 0; i < _proposalNames.length; i++) {
+            proposals.push(Proposal({
+                name: _proposalNames[i],
+                voteCount: 0
+            }));
+            emit ProposalRegistered(i, _proposalNames[i]);
+        }
+    }
+
+    function vote(uint256 _proposalIndex) external {
+        require(!voters[msg.sender].hasVoted, "You have already voted");
+        require(_proposalIndex < proposals.length, "Invalid proposal index");
+
+        voters[msg.sender].hasVoted = true;
+        voters[msg.sender].voteIndex = _proposalIndex;
+        proposals[_proposalIndex].voteCount++;
+        emit Voted(msg.sender, _proposalIndex);
+    }
+
+    function getWinningProposal() external view returns (string memory) {
+        require(proposals.length > 0, "No proposals available");
+
+        uint256 winningVoteCount = 0;
+        uint256 winningProposalIndex = 0;
+
+        for (uint256 i = 0; i < proposals.length; i++) {
+            if (proposals[i].voteCount > winningVoteCount) {
+                winningVoteCount = proposals[i].voteCount;
+                winningProposalIndex = i;
+            }
+        }
+
+        return proposals[winningProposalIndex].name;
+    }
+
+    function addProposal(string memory _name) external onlyOwner {
+        proposals.push(Proposal({
+            name: _name,
+            voteCount: 0
+        }));
+        emit ProposalRegistered(proposals.length - 1, _name);
+    }
+}
